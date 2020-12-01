@@ -1,8 +1,12 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
+	"log"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -156,4 +160,54 @@ func TestPutOrder(t *testing.T) {
 	trie2.Put([]byte{1, 2, 3, 4, 5, 6}, []byte("world"))
 
 	require.Equal(t, trie1.Hash(), trie2.Hash())
+}
+
+type tCase struct {
+	key   []byte
+	value []byte
+}
+
+func testCase() *tCase {
+	pk, err := GenerateKey()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	addr := PubkeyToAddress(pk.PublicKey)
+	val := randValue()
+
+	return &tCase{addr.Raw(), val}
+}
+
+func randValue() []byte {
+
+	randInt, err := rand.Int(rand.Reader, big.NewInt(1000))
+	if err != nil {
+		log.Panic(err)
+	}
+	timestamp, err := time.Now().MarshalBinary()
+	if err != nil {
+		log.Panic(err)
+	}
+	return append(randInt.Bytes(), timestamp...)
+}
+
+var testCases = make(map[int]*tCase)
+
+func BenchmarkMassInsertion(b *testing.B) {
+	b.StopTimer()
+	b.ResetTimer()
+
+	trie := NewTrie()
+	// Test Insertion
+	for n := 0; n < b.N; n++ {
+		for i := 0; i < 100; i++ {
+			tc := testCase()
+			testCases[i] = tc
+			b.StartTimer()
+			trie.Put(tc.key, tc.value)
+			b.StopTimer()
+		}
+	}
+
 }
